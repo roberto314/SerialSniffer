@@ -37,7 +37,7 @@ uint32_t smallest_pulse = 0xFFFF;
 icucnt_t last_width1, last_period1;
 uint32_t sp_temp;
 systime_t oldstart, blockstart = 0, last_received_char;
-uint8_t dump_in_progress, dump_ascii = 1;
+uint8_t dump_in_progress, dump_ascii = 0;
 
 uint8_t last_src = 0xFF, other_src;
 struct listener_st {
@@ -179,13 +179,13 @@ void dump_data(uint8_t source){
   uint8_t i,j,c;
   dump_in_progress = 1;
   systime_t diff = ls[source].starttime - oldstart;
-  if (ls[source].charcnt > 0){ // nice formatting if more than one character
+  if (ls[source].charcnt > 0){ // nice formatting always! (if more than one character)
     if (blockstart == 0){ // start of new block has no diff
       blockstart = ls[source].starttime;
-      chprintf(dbg, "\r\n%06d | ---- | %d> Charcount: %d",ls[source].starttime, source, ls[source].charcnt);
+      chprintf(dbg, "\r\n                                                                    %06d | ---- | %d> cnt: %d",ls[source].starttime, source, ls[source].charcnt);
     }
     else{
-      chprintf(dbg, "\r\n%06d | %04d | %d> Charcount: %d",ls[source].starttime, diff, source, ls[source].charcnt);
+      chprintf(dbg, "\r\n                                                                    %06d | %04d | %d> cnt: %d",ls[source].starttime, diff, source, ls[source].charcnt);
     }
     chprintf(dbg, "\r\n");
     for (i=0;i<ls[source].charcnt;i++){ // go through all the characters
@@ -206,6 +206,7 @@ void dump_data(uint8_t source){
     // But there could be a block of < 16 chars rest
     if (dump_ascii != 0){
       uint8_t rest = (((ls[source].charcnt / 16) + 1) * 16) - ls[source].charcnt;
+      if (i==16) rest = 0;
       for (j=0;j<rest;j++){ 
         chprintf(dbg, "   "); // fill the space
       }
@@ -218,7 +219,7 @@ void dump_data(uint8_t source){
     //chprintf(dbg, "\r\n");
     chprintf(dbg, "\r\n");
   }
-  else{ // only one character
+  else{ // NOT USED ANYMORE (only one character)
     if (blockstart == 0){ // start of new block has no diff
       blockstart = ls[source].starttime;
       chprintf(dbg, "\r\n%06d | ---- | %d> ",ls[source].starttime, source);
@@ -264,7 +265,7 @@ void receive_data(uint8_t source, uint8_t c){
   last_src = source;
 }
 
-static THD_WORKING_AREA(waListener1, 128);
+static THD_WORKING_AREA(waListener1, 512);
 static THD_FUNCTION(Listener1, arg) {
 
   (void)arg;
@@ -277,7 +278,7 @@ static THD_FUNCTION(Listener1, arg) {
   }
   chThdSleepMilliseconds(50);
 }
-static THD_WORKING_AREA(waListener2, 128);
+static THD_WORKING_AREA(waListener2, 512);
 static THD_FUNCTION(Listener2, arg) {
 
   (void)arg;
