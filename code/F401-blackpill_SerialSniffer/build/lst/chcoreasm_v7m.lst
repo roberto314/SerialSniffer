@@ -1,7 +1,7 @@
-ARM GAS  /tmp/ccu0K9v9.s 			page 1
+ARM GAS  /tmp/ccqQGA0d.s 			page 1
 
 
-   1              	# 1 "../../chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S"
+   1              	# 1 "../../../ChibiStudio/ChibiStudio_20/chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcorea
    1              	/*
    1              	...
    0              	
@@ -58,7 +58,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
   14              	    GNU General Public License for more details.
   15              	
   16              	    You should have received a copy of the GNU General Public License
-ARM GAS  /tmp/ccu0K9v9.s 			page 2
+ARM GAS  /tmp/ccqQGA0d.s 			page 2
 
 
   17              	    along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -118,7 +118,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
    1              	/*
   39              	#include "chcore.h"
    1              	/*
-ARM GAS  /tmp/ccu0K9v9.s 			page 3
+ARM GAS  /tmp/ccqQGA0d.s 			page 3
 
 
    2              	    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio.
@@ -178,7 +178,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
   56              	#define PORT_COMPILER_NAME              "IAR"
   57              	
   58              	#elif defined(__CC_ARM)
-ARM GAS  /tmp/ccu0K9v9.s 			page 4
+ARM GAS  /tmp/ccqQGA0d.s 			page 4
 
 
   59              	#define PORT_COMPILER_NAME              "RVCT"
@@ -238,7 +238,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
   43              	 */
   44              	#define CORTEX_PRIORITY_BITS    4
   45              	
-ARM GAS  /tmp/ccu0K9v9.s 			page 5
+ARM GAS  /tmp/ccqQGA0d.s 			page 5
 
 
   46              	/* If the device type is not externally defined, for example from the Makefile,
@@ -298,7 +298,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
  106              	/* The following declarations are there just for Doxygen documentation, the
  107              	   real declarations are inside the sub-headers being specific for the
  108              	   sub-architectures.*/
-ARM GAS  /tmp/ccu0K9v9.s 			page 6
+ARM GAS  /tmp/ccqQGA0d.s 			page 6
 
 
  109              	#if defined(__DOXYGEN__)
@@ -358,7 +358,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
  163              	
  164              	/**
  165              	 * @brief   Priority level verification macro.
-ARM GAS  /tmp/ccu0K9v9.s 			page 7
+ARM GAS  /tmp/ccqQGA0d.s 			page 7
 
 
  166              	 */
@@ -418,7 +418,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
   67              	#define SCB_ICSR        0xE000ED04
   68              	#define ICSR_PENDSVSET  0x10000000
   69              	
-ARM GAS  /tmp/ccu0K9v9.s 			page 8
+ARM GAS  /tmp/ccqQGA0d.s 			page 8
 
 
   70              	                .syntax unified
@@ -478,7 +478,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
  124              	#endif
  125              	#if PORT_SWITCHED_REGIONS_NUMBER == 4
  126              	                push    {r4, r5, r6, r7, r8, r9, r10, r11}
-ARM GAS  /tmp/ccu0K9v9.s 			page 9
+ARM GAS  /tmp/ccqQGA0d.s 			page 9
 
 
  127              	#endif
@@ -538,7 +538,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
  181 000c BDE8F08F 	                pop     {r4, r5, r6, r7, r8, r9, r10, r11, pc}
  182              	
  183              	/*--------------------------------------------------------------------------*
-ARM GAS  /tmp/ccu0K9v9.s 			page 10
+ARM GAS  /tmp/ccqQGA0d.s 			page 10
 
 
  184              	 * Start a thread by invoking its work function.
@@ -598,7 +598,7 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
  238              	#if CORTEX_SIMPLIFIED_PRIORITY
  239              	                movw    r3, #:lower16:SCB_ICSR
  240              	                movt    r3, #:upper16:SCB_ICSR
-ARM GAS  /tmp/ccu0K9v9.s 			page 11
+ARM GAS  /tmp/ccqQGA0d.s 			page 11
 
 
  241              	                mov     r2, ICSR_PENDSVSET
@@ -608,16 +608,16 @@ ARM GAS  /tmp/ccu0K9v9.s 			page 1
  245 0026 00DF     	                svc     #0
  246              	#endif /* !CORTEX_SIMPLIFIED_PRIORITY */
  247 0028 FEE7     	.L1:            b       .L1
-ARM GAS  /tmp/ccu0K9v9.s 			page 12
+ARM GAS  /tmp/ccqQGA0d.s 			page 12
 
 
 DEFINED SYMBOLS
-../../chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:86     .text:0000000000000000 _port_switch
-../../chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:87     .text:0000000000000000 $t
-../../chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:193    .text:0000000000000010 _port_thread_start
-../../chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:213    .text:0000000000000020 _zombies
-../../chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:222    .text:0000000000000022 _port_switch_from_isr
-../../chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:237    .text:0000000000000026 _port_exit_from_isr
+../../../ChibiStudio/ChibiStudio_20/chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:86     .text:0000000000000000 _port_switch
+../../../ChibiStudio/ChibiStudio_20/chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:87     .text:0000000000000000 $t
+../../../ChibiStudio/ChibiStudio_20/chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:193    .text:0000000000000010 _port_thread_start
+../../../ChibiStudio/ChibiStudio_20/chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:213    .text:0000000000000020 _zombies
+../../../ChibiStudio/ChibiStudio_20/chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:222    .text:0000000000000022 _port_switch_from_isr
+../../../ChibiStudio/ChibiStudio_20/chibios_trunk/os/common/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.S:237    .text:0000000000000026 _port_exit_from_isr
 
 UNDEFINED SYMBOLS
 chThdExit

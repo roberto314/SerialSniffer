@@ -16,5 +16,6 @@
 void cmd_test(BaseSequentialStream *chp, int argc, char *argv[]);
 void cmd_sbr(BaseSequentialStream *chp, int argc, char *argv[]);
 void cmd_son(BaseSequentialStream *chp, int argc, char *argv[]);
+void cmd_aon(BaseSequentialStream *chp, int argc, char *argv[]);
 
 #endif /* USERLIB_INCLUDE_COMM_H_ */

@@ -21,7 +21,7 @@
 extern BaseSequentialStream *const dbg; //DEBUGPORT
 extern SerialConfig serial_config;
 extern ICUConfig icucfg1, icucfg2;
-extern uint8_t serstat;
+extern uint8_t serstat, dump_ascii;
 /*===========================================================================*/
 /* Command line related.                                                     */
 /*===========================================================================*/
@@ -62,6 +62,28 @@ void cmd_sbr(BaseSequentialStream *chp, int argc, char *argv[]) {
   sdStart(&SD1, &serial_config);
   sdStart(&SD2, &serial_config);
   chprintf(chp, "UARTs updated.\r\n");
+}
+
+void cmd_aon(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)* argv;
+  (void)argc;
+  uint8_t stat;
+  stat = dump_ascii;
+  if(argc <1){
+    chprintf(chp, "Turns ASCII Output on or off.\r\n");
+    if (stat)
+      chprintf(chp, "ASCII is now on. %d \r\n", stat);
+    else
+      chprintf(chp, "ASCII is now off. %d \r\n", stat);
+    chprintf(chp, "Usage: aon [0|1]\r\n");
+    return;
+  }
+  stat = (uint8_t)strtol(argv[0], NULL, 0);
+  if (stat > 1){
+    chprintf(chp, "Only 0 or 1 allowed. (%d) \r\n", stat);
+    return;
+  }
+  dump_ascii = stat;
 }
 
 void cmd_son(BaseSequentialStream *chp, int argc, char *argv[]) {

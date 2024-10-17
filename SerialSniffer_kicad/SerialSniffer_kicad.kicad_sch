@@ -7506,7 +7506,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1k"
+		(property "Value" "100k"
 			(at 55.88 27.9399 0)
 			(effects
 				(font
@@ -7710,7 +7710,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1k"
+		(property "Value" "100k"
 			(at 55.88 54.6099 0)
 			(effects
 				(font

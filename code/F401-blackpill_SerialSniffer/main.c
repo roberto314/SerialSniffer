@@ -26,7 +26,7 @@
 #include "comm.h"
 #define CLOCKFREQ 10000000UL
 SerialConfig serial_config = {
-  9600,
+  38400,
   0,  // CR1 
   0,  // CR2 
   0   // CR3
@@ -34,12 +34,19 @@ SerialConfig serial_config = {
 
 uint8_t serstat = 1; // 0: Serial off, Timer On
 uint32_t smallest_pulse = 0xFFFF;
-uint32_t sp_temp;
-//uint8_t count;
-uint8_t last_src;
-systime_t start;
-
 icucnt_t last_width1, last_period1;
+uint32_t sp_temp;
+systime_t oldstart, blockstart = 0, last_received_char;
+uint8_t dump_in_progress, dump_ascii = 1;
+
+uint8_t last_src = 0xFF, other_src;
+struct listener_st {
+  uint8_t  lastchar[8192];
+  uint32_t charcnt;
+  systime_t starttime;
+};
+
+struct listener_st ls[2];
 
 static void icuwidthcb1(ICUDriver *icup) { // This gets called every falling edge.
 
@@ -86,6 +93,7 @@ static const ShellCommand commands[] = {
   {"test",cmd_test},
   {"sbr",cmd_sbr},
   {"son",cmd_son},
+  {"aon",cmd_aon},
   {NULL, NULL}
 };
 static const ShellConfig shell_cfg1 = {
@@ -159,21 +167,101 @@ static THD_FUNCTION(Thread1, arg) {
 //    }
   }
 }
-void send_data(uint8_t source, uint8_t c){
-  if (last_src == source){
-    if (source < 3)
+
+void safe_print(uint8_t c){
+  if (c > 0x1F) // print only printable characters
+    chprintf(dbg, "%c", c);
+  else
+    chprintf(dbg, "%c",'.');    
+}
+
+void dump_data(uint8_t source){
+  uint8_t i,j,c;
+  dump_in_progress = 1;
+  systime_t diff = ls[source].starttime - oldstart;
+  if (ls[source].charcnt > 0){ // nice formatting if more than one character
+    if (blockstart == 0){ // start of new block has no diff
+      blockstart = ls[source].starttime;
+      chprintf(dbg, "\r\n%06d | ---- | %d> Charcount: %d",ls[source].starttime, source, ls[source].charcnt);
+    }
+    else{
+      chprintf(dbg, "\r\n%06d | %04d | %d> Charcount: %d",ls[source].starttime, diff, source, ls[source].charcnt);
+    }
+    chprintf(dbg, "\r\n");
+    for (i=0;i<ls[source].charcnt;i++){ // go through all the characters
+      c = ls[source].lastchar[i];
+      if ((i%16 == 0) && (i>0)){ // every 16 chars dump character representation and newline
+        if (dump_ascii != 0){
+          chprintf(dbg, " | "); // make separator
+          //chprintf(dbg, "i: %d  ", i);
+          for (j=i-16;j<i;j++){ // print the characters again
+            safe_print(ls[source].lastchar[j]);
+          }
+        }
+        chprintf(dbg, "\r\n");
+      }
       chprintf(dbg, "%02x ", c);
+    }
+    // now all characters have been printed. 
+    // But there could be a block of < 16 chars rest
+    if (dump_ascii != 0){
+      uint8_t rest = (((ls[source].charcnt / 16) + 1) * 16) - ls[source].charcnt;
+      for (j=0;j<rest;j++){ 
+        chprintf(dbg, "   "); // fill the space
+      }
+      chprintf(dbg, " | "); // make separator
+      //chprintf(dbg, "Rest: %d i: %d\r\n", rest, i);
+      for (j=i-(16-rest);j<i;j++){
+        safe_print(ls[source].lastchar[j]);
+      }
+    }
+    //chprintf(dbg, "\r\n");
+    chprintf(dbg, "\r\n");
+  }
+  else{ // only one character
+    if (blockstart == 0){ // start of new block has no diff
+      blockstart = ls[source].starttime;
+      chprintf(dbg, "\r\n%06d | ---- | %d> ",ls[source].starttime, source);
+    }
+    else{
+      chprintf(dbg, "\r\n%06d | %04d | %d> ",ls[source].starttime, diff, source);
+    }
+    uint8_t c = ls[source].lastchar[i];
+    if (dump_ascii != 0){
+      if (c > 0x1F) // print only printable characters
+        chprintf(dbg, "%02x | %c", c, c);
+      else
+        chprintf(dbg, "%02x |", c);          
+    }
+    else{
+      chprintf(dbg, "%02x", c);
+    }
+  }
+  //chprintf(dbg, "\r\n");
+  ls[source].charcnt = 0;
+  dump_in_progress = 0;
+}
+
+void receive_data(uint8_t source, uint8_t c){
+  if (source == 2){
+    chprintf(dbg, "\r\n%06d BREAK---------------- ",TIME_I2MS(chVTGetSystemTime()));
   }
   else{
-    start = TIME_I2MS(chVTGetSystemTime());
-    if (source < 3)
-      chprintf(dbg, "\r\n%06d %d> %02x ",start, source, c);
-    else
-      chprintf(dbg, "\r\n%06d BREAK---------------- ",start);
-    last_src = source;
-
+    if (last_src != source){ // first char of other listener
+      //if ((ls[other_src].charcnt == 0) && (ls[source].charcnt == 0)){
+      //  blockstart = TIME_I2MS(chVTGetSystemTime());
+      //}
+      oldstart = ls[source].starttime;
+      ls[source].starttime = TIME_I2MS(chVTGetSystemTime());
+      other_src = (source+1) & 1; // get other listener
+      if (ls[other_src].charcnt){ // it is NOT the first transmission
+        dump_data(other_src);
+      }
+    }
+    ls[source].lastchar[ls[source].charcnt] = c;
+    ls[source].charcnt ++;
   }
-
+  last_src = source;
 }
 
 static THD_WORKING_AREA(waListener1, 128);
@@ -184,9 +272,10 @@ static THD_FUNCTION(Listener1, arg) {
   chRegSetThreadName("listener1");
   while (true) {
     sdRead(&SD1, (uint8_t *)&c, 1);
-    send_data(1,c);
-    chThdSleepMilliseconds(50);
+    last_received_char = TIME_I2MS(chVTGetSystemTime());
+    receive_data(0,c);
   }
+  chThdSleepMilliseconds(50);
 }
 static THD_WORKING_AREA(waListener2, 128);
 static THD_FUNCTION(Listener2, arg) {
@@ -196,26 +285,38 @@ static THD_FUNCTION(Listener2, arg) {
   chRegSetThreadName("listener2");
   while (true) {
     sdRead(&SD2, (uint8_t *)&c, 1);
-    send_data(2,c);
-    chThdSleepMilliseconds(50);
+    last_received_char = TIME_I2MS(chVTGetSystemTime());
+    receive_data(1,c);
   }
+  chThdSleepMilliseconds(50);
 }
 static THD_WORKING_AREA(waListener3, 128);
 static THD_FUNCTION(Listener3, arg) {
 
   (void)arg;
-  static uint8_t disable = 0;
+  static uint8_t disable = 0, source = 0;
   chRegSetThreadName("listener3");
   while (true) {
     if (palReadPad(GPIOA, 0)){
       if (disable == 0){
-        send_data(3,0);
+        receive_data(2,0);
         disable = 1;
       }
     }
     else{
       disable = 0;
     }
+    if ((TIME_I2MS(chVTGetSystemTime()) - last_received_char > 100) && 
+        (ls[source].charcnt) &&
+        (ls[(source+1)&1].charcnt == 0) &&
+        (dump_in_progress == 0)){
+      //chprintf(dbg, "\r\n---------------------------\r\n");
+      //chprintf(dbg, "Now: %d lastchar: %d\r\n", TIME_I2MS(chVTGetSystemTime()), last_received_char);
+      oldstart = ls[(source+1)&1].starttime;
+      dump_data(source);
+      blockstart = 0;
+    }
+    source = (source+1)&1;
     chThdSleepMilliseconds(50);
   }
 }
