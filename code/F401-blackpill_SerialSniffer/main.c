@@ -176,7 +176,8 @@ void safe_print(uint8_t c){
 }
 
 void dump_data(uint8_t source){
-  uint8_t i,j,c;
+  uint8_t c;
+  uint32_t i,j;
   dump_in_progress = 1;
   systime_t diff = ls[source].starttime - oldstart;
   if (ls[source].charcnt > 0){ // nice formatting always! (if more than one character)
@@ -188,19 +189,22 @@ void dump_data(uint8_t source){
       chprintf(dbg, "\r\n                                                                    %06d | %04d | %d> cnt: %d",ls[source].starttime, diff, source, ls[source].charcnt);
     }
     chprintf(dbg, "\r\n");
-    for (i=0;i<ls[source].charcnt;i++){ // go through all the characters
-      c = ls[source].lastchar[i];
-      if ((i%16 == 0) && (i>0)){ // every 16 chars dump character representation and newline
-        if (dump_ascii != 0){
-          chprintf(dbg, " | "); // make separator
-          //chprintf(dbg, "i: %d  ", i);
-          for (j=i-16;j<i;j++){ // print the characters again
-            safe_print(ls[source].lastchar[j]);
+    //if (ls[source].charcnt < 135){
+    if (1){
+      for (i=0;i<ls[source].charcnt;i++){ // go through all the characters
+        c = ls[source].lastchar[i];
+        if ((i%16 == 0) && (i>0)){ // every 16 chars dump character representation and newline
+          if (dump_ascii != 0){
+            chprintf(dbg, " | "); // make separator
+            //chprintf(dbg, "i: %d  ", i);
+            for (j=i-16;j<i;j++){ // print the characters again
+              safe_print(ls[source].lastchar[j]);
+            }
           }
+          chprintf(dbg, "\r\n");
         }
-        chprintf(dbg, "\r\n");
+        chprintf(dbg, "%02x ", c);
       }
-      chprintf(dbg, "%02x ", c);
     }
     // now all characters have been printed. 
     // But there could be a block of < 16 chars rest
@@ -244,24 +248,19 @@ void dump_data(uint8_t source){
 }
 
 void receive_data(uint8_t source, uint8_t c){
-  if (source == 2){
-    chprintf(dbg, "\r\n%06d BREAK---------------- ",TIME_I2MS(chVTGetSystemTime()));
-  }
-  else{
-    if (last_src != source){ // first char of other listener
-      //if ((ls[other_src].charcnt == 0) && (ls[source].charcnt == 0)){
-      //  blockstart = TIME_I2MS(chVTGetSystemTime());
-      //}
-      oldstart = ls[source].starttime;
-      ls[source].starttime = TIME_I2MS(chVTGetSystemTime());
-      other_src = (source+1) & 1; // get other listener
-      if (ls[other_src].charcnt){ // it is NOT the first transmission
-        dump_data(other_src);
-      }
+  if (last_src != source){ // first char of other listener
+    //if ((ls[other_src].charcnt == 0) && (ls[source].charcnt == 0)){
+    //  blockstart = TIME_I2MS(chVTGetSystemTime());
+    //}
+    oldstart = ls[source].starttime;
+    ls[source].starttime = TIME_I2MS(chVTGetSystemTime());
+    other_src = (source+1) & 1; // get other listener
+    if (ls[other_src].charcnt){ // it is NOT the first transmission
+      dump_data(other_src);
     }
-    ls[source].lastchar[ls[source].charcnt] = c;
-    ls[source].charcnt ++;
   }
+  ls[source].lastchar[ls[source].charcnt] = c;
+  ls[source].charcnt ++;
   last_src = source;
 }
 
@@ -300,7 +299,7 @@ static THD_FUNCTION(Listener3, arg) {
   while (true) {
     if (palReadPad(GPIOA, 0)){
       if (disable == 0){
-        receive_data(2,0);
+        chprintf(dbg, "\r\n%06d BREAK---------------- ",TIME_I2MS(chVTGetSystemTime()));
         disable = 1;
       }
     }
