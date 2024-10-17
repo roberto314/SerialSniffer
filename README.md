@@ -21,7 +21,7 @@ Firmware is ChibiOS Link: https://www.chibios.org), Version is trunk from ChibiS
 * when communication occurs there should be a "Baud: abcd" outpt at the console
 * enter the Baudrate with "sbr abcd" and switch on the listeners with "son 1"
 
-There are some Jumpers on the board. To measure the Baudrate connect Jumper 
+There are some Jumpers on the board. J3 and J4 and the solder Jumper on the back JP2 and JP3 lets you connect to different Pins of the DB-9 connector for non-standard pinouts. The Jumper Pin5 is for Ground which is usually on Pin5.
 
 ### Used Software and OS ###
 
