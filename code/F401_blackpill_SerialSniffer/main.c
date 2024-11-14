@@ -189,6 +189,10 @@ uint32_t dump_data_0(uint32_t cnt, uint8_t src){
   uint32_t i, idx;
   uint8_t ch;
   systime_t tm, dt;
+  if (src == 3){
+    chprintf(dbg, "------------------ BREAK @ T: %06d\r\n", tm);
+    return cnt+oldcnt;
+  }  
   chprintf(dbg, "%d->%d cnt: %d \r\n", src, (src==1?2:1), cnt);
   for (i=0;i<cnt;i++){ // go through all the characters
     idx = (i+oldcnt) & BUFFMSK;
@@ -200,8 +204,8 @@ uint32_t dump_data_0(uint32_t cnt, uint8_t src){
     else
       chprintf(dbg, "%02X T: %06d dT: ----\r\n", ch, tm);
   }
-  chprintf(dbg, "\r\n");
-  return i+oldcnt;
+  //chprintf(dbg, "\r\n");
+  return cnt+oldcnt;
 }
 
 uint32_t dump_data_1(uint32_t cnt, uint8_t src){
@@ -209,7 +213,10 @@ uint32_t dump_data_1(uint32_t cnt, uint8_t src){
   uint8_t ch;
   systime_t tm;
   tm = ldat[oldcnt].timestamp - firstchar; // tm starts at zero
-  chprintf(dbg, "\r\n");
+  if (src == 3){
+    chprintf(dbg, "------------------ BREAK @ T: %06d\r\n", tm);
+    return cnt+oldcnt;
+  }
   chprintf(dbg, "%d->%d cnt: %d T: %06d\r\n", src, (src==1?2:1), cnt, tm);
   for (i=0;i<cnt;i++){ // go through all the characters
     idx = (i+oldcnt) & BUFFMSK;
@@ -218,7 +225,7 @@ uint32_t dump_data_1(uint32_t cnt, uint8_t src){
     chprintf(dbg, "%02X ", ch);
   }
   chprintf(dbg, "\r\n");
-  return i+oldcnt;
+  return cnt+oldcnt;
 }
 
 uint32_t dump_data_2(uint32_t cnt, uint8_t src){
@@ -226,7 +233,10 @@ uint32_t dump_data_2(uint32_t cnt, uint8_t src){
   uint8_t ch;
   systime_t tm;
   tm = ldat[oldcnt].timestamp - firstchar; // tm starts at zero
-  chprintf(dbg, "\r\n");
+  if (src == 3){
+    chprintf(dbg, "------------------ BREAK @ T: %06d\r\n", tm);
+    return cnt+oldcnt;
+  }
   chprintf(dbg, "%d->%d cnt: %d T: %06d\r\n", src, (src==1?2:1), cnt, tm);
   for (line=0; line < cnt;line+=16){
     // print HEX here
@@ -253,7 +263,7 @@ uint32_t dump_data_2(uint32_t cnt, uint8_t src){
     }    
     chprintf(dbg, "\r\n");
   }
-  chprintf(dbg, "\r\n");
+  //chprintf(dbg, "\r\n");
   return cnt+oldcnt;
 }
 
@@ -296,7 +306,7 @@ void check_data(void){
   }
   if (oldcnt > BUFFMSK) oldcnt = (oldcnt & BUFFMSK);
   dump_in_progress = 0;
-  chprintf(dbg, "CNT: %d, OLD: %d\r\n", ldat_cnt, oldcnt);
+  //chprintf(dbg, "CNT: %d, OLD: %d\r\n", ldat_cnt, oldcnt);
 }
 
 void got_char(uint8_t c, uint8_t src){
@@ -307,7 +317,7 @@ void got_char(uint8_t c, uint8_t src){
   ldat[ldat_cnt & BUFFMSK].src = src;
   ldat[ldat_cnt & BUFFMSK].timestamp = last_received_char;
   if (ldat_cnt == 0){
-    chprintf(dbg, "\r\n");
+    chprintf(dbg, "\r\n------------------------- START HERE ------------------------------\r\n");
     firstchar = last_received_char; // very first character
   } 
   ldat_cnt = ((ldat_cnt + 1)  & BUFFMSK) ;

@@ -15,7 +15,7 @@ Firmware is ChibiOS Link: https://www.chibios.org), Version is trunk from ChibiS
 
 * Connect a USB Cable to the "blackpill" Board,
 * Start a terminal (i use picocom - "picocom /dev/ttyACM0")
-* press "ENTER" a shell prompt should appear: ch>
+* press "ENTER" a shell prompt should appear: Serial_Sniffer>
 * enter "help" to get a list of all commands
 * connect the Jumper J8 (marked "Timer") to one of the channels
 * when communication occurs there should be a "Baud: abcd" outpt at the console
