@@ -24,18 +24,178 @@
 
 #include "usbcfg.h"
 #include "comm.h"
+
+/*===========================================================================*/
+/* Function Prototypes                                                       */
+/*===========================================================================*/
+void got_char(uint8_t c, uint8_t src);
+uint32_t increase_rwcnt(uint32_t cnt);
+
+/*===========================================================================*/
+/* Global Variables                                                          */
+/*===========================================================================*/
+BaseSequentialStream *const shell = (BaseSequentialStream *)&SHELLPORT;
+BaseSequentialStream *const dbg = (BaseSequentialStream *)&DEBUGPORT;
+
 #define CLOCKFREQ 10000000UL
-SerialConfig serial_config = {
+#define BUFFSZ 6000 
+
+lst_st ldat[BUFFSZ];                // This is the Buffer
+uint32_t write_cnt = 0, read_cnt = 0; // Indizes for Write and Read from Buffer
+uint32_t rx_cnt = 0, tx_cnt = 0;
+uint16_t flush_timeout = 1000;
+uint8_t dump_format = 2, dump_in_progress = 0, first_char = 1;
+systime_t fc_timestamp, last_received_char;
+
+uint8_t serstat = 1; // 0: Serial off, Timer On
+uint32_t smallest_pulse = 0xFFFF;
+icucnt_t last_width1, last_period1;
+uint32_t sp_temp;
+
+/*===========================================================================*/
+/* Button related code.                                                      */
+/*===========================================================================*/
+
+/* Function prototypes needed as the two callbacks call each other.
+   there is no way to order the callback without triggering an error. */
+static void button_cb(void *arg);
+static void vt_cb(virtual_timer_t *vtp, void *p);
+static uint8_t btn_second_edge = 0, btn_cnt = 0;
+
+/* Virtual timer. */
+static virtual_timer_t vt, vt2;
+
+/* Callback of the virtual timer. */
+static void vt_cb(virtual_timer_t *vtp, void *p) { // Timer cb after 50ms (single click)
+  (void)vtp;
+  (void)p;
+  chSysLockFromISR();
+  /* Enabling the event and associating the callback. */
+  if (btn_second_edge) // The first edge is a negative one, the second a rising one
+    palEnableLineEventI(EXTBTN, PAL_EVENT_MODE_RISING_EDGE); // Prepare for release of button
+  else
+    palEnableLineEventI(EXTBTN, PAL_EVENT_MODE_FALLING_EDGE);
+  palSetLineCallbackI(EXTBTN, button_cb, NULL);
+  chSysUnlockFromISR();
+}
+
+static void vt2_cb(virtual_timer_t *vtp, void *p) { // Timer cb after 200ms (double click)
+  (void)vtp;
+  (void)p;
+  chSysLockFromISR();
+  switch (btn_cnt){
+  case 1:
+    if (btn_second_edge){ // only for the first edge
+      //chprintf(dbg, "click long. %d \r\n");
+    }
+    break;
+  case 2:
+    //chprintf(dbg, "click once. %d \r\n");
+    got_char(' ', 3);
+    break;
+  default:
+    //chprintf(dbg, "click double. %d \r\n");
+    break;
+  }
+
+  btn_cnt = 0;
+  chSysUnlockFromISR();
+}
+/* Callback associated to the falling or rising edge of the button line. */
+static void button_cb(void *arg) {
+  (void)arg;
+  //palToggleLine(LED);
+  if (btn_second_edge){    // next edge
+    btn_second_edge = 0;
+  }
+  else{                  // very first negative going edge or Button released
+    btn_second_edge = 1;
+    //chprintf(dbg, "click immediately. %d \r\n");
+  }
+  btn_cnt++;           // count edges
+  chSysLockFromISR();
+  /* Disabling the event on the line and setting a timer to
+     re-enable it. */
+  palDisableLineEventI(EXTBTN);
+  /* Arming the VT timer to re-enable the event in 50ms. */
+  chVTResetI(&vt);
+  chVTDoSetI(&vt, TIME_MS2I(50), vt_cb, NULL);
+  chVTResetI(&vt2);
+  chVTDoSetI(&vt2, TIME_MS2I(200), vt2_cb, NULL);
+  chSysUnlockFromISR();
+}
+
+/*===========================================================================*/
+/* Character Write Function                                                  */
+/*===========================================================================*/
+
+void got_char(uint8_t c, uint8_t src){ // This function fills the Ringbuffer
+  //int32_t temp;
+  //temp = write_cnt-1; // last entry
+  last_received_char = TIME_I2MS(chVTGetSystemTime()); // get Timestamp
+  if (src == 3){
+    chprintf(dbg, "------------------ BREAK @ T[ms]: %06d\r\n", last_received_char);
+  }
+  else{
+    ldat[write_cnt].lastchar = c;
+    ldat[write_cnt].src = src;
+    ldat[write_cnt].timestamp = last_received_char;
+    if ((rx_cnt+tx_cnt) <= 1){
+      //first_char = 0;
+      chprintf(dbg, "\r\n------------------------- START HERE ------------------------------\r\n");
+      fc_timestamp = last_received_char; // very first character
+    } 
+    write_cnt = increase_rwcnt(write_cnt);
+  }
+}
+
+/*
+ * This callback is invoked when a character is received but the application
+ * was not ready to receive it, the character is passed as parameter.
+ */
+static void rxchar1(UARTDriver *uartp, uint16_t c) {
+  (void)uartp;
+  (void)c;
+  rx_cnt++;
+  got_char((uint8_t)c, 1);
+}
+
+UARTConfig uart_cfg1 = {
+  NULL,
+  NULL,
+  NULL,
+  rxchar1,
+  NULL,
+  NULL,
   38400,
   0,  // CR1 
   0,  // CR2 
   0   // CR3
 };
 
-uint8_t serstat = 1; // 0: Serial off, Timer On
-uint32_t smallest_pulse = 0xFFFF;
-icucnt_t last_width1, last_period1;
-uint32_t sp_temp;
+static void rxchar2(UARTDriver *uartp, uint16_t c) {
+  (void)uartp;
+  (void)c;
+  tx_cnt++;
+  got_char((uint8_t)c, 2);
+}
+
+UARTConfig uart_cfg2 = {
+  NULL,
+  NULL,
+  NULL,
+  rxchar2,
+  NULL,
+  NULL,
+  38400,
+  0,  // CR1 
+  0,  // CR2 
+  0   // CR3
+};
+
+/*===========================================================================*/
+/* Baudrate Measurement related                                              */
+/*===========================================================================*/
 
 static void icuwidthcb1(ICUDriver *icup) { // This gets called every falling edge.
 
@@ -67,11 +227,20 @@ ICUConfig icucfg1 = {
   0xFFFFFFFFU
 };
 
+void flush_buffer(void){
+  write_cnt = 0;
+  read_cnt = 0;
+  memset(ldat, 0, sizeof(ldat));
+  chprintf(dbg, "RX Count: %d or 0x%04X\r\n", rx_cnt, rx_cnt);
+  chprintf(dbg, "TX Count: %d or 0x%04X\r\n", tx_cnt, tx_cnt);
+  chprintf(dbg, "Total Count: %d or 0x%04X\r\n",(tx_cnt+rx_cnt), (tx_cnt+rx_cnt));
+  rx_cnt = 0;
+  tx_cnt = 0;
+}
+
 /*===========================================================================*/
 /* Command line related.                                                     */
 /*===========================================================================*/
-BaseSequentialStream *const shell = (BaseSequentialStream *)&SHELLPORT;
-BaseSequentialStream *const dbg = (BaseSequentialStream *)&DEBUGPORT;
 
 #define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(2048)
 
@@ -87,6 +256,7 @@ static const ShellCommand commands[] = {
   {"stt",cmd_stt},
   {NULL, NULL}
 };
+
 static const ShellConfig shell_cfg1 = {
   (BaseSequentialStream *)&SHELLPORT,
   commands,
@@ -149,19 +319,6 @@ static THD_FUNCTION(Thread1, arg) {
   }
 }
 
-#define BUFFSZ 1024 // must be a power of two!
-#define BUFFMSK (BUFFSZ - 1)
-lst_st ldat[BUFFSZ];
-uint32_t ldat_cnt = 0, oldcnt = 0;
-uint16_t flush_timeout = 1000;
-uint8_t dump_format = 2, dump_in_progress = 0;
-systime_t firstchar, last_received_char;
-
-void flush_buffer(void){
-  ldat_cnt = 0;
-  oldcnt = 0;
-  memset(ldat, 0, sizeof(ldat));
-}
 void safe_print(uint8_t c){  // print only printable characters
   if ((c > 0x1F) && (c < 128))
     chprintf(dbg, "%c", c);
@@ -169,204 +326,155 @@ void safe_print(uint8_t c){  // print only printable characters
     chprintf(dbg, "%c",'.');    
 }
 
+uint32_t increase_rwcnt(uint32_t cnt){
+  cnt++;
+  if (cnt >= BUFFSZ) cnt = 0; // check for oerflow
+  return cnt;
+}
+
 int32_t get_count(void){
-  uint32_t i;
+/* Data in Array (c: Character, 1,2: Source, t: Timestamp)
+* c2tc2tc2tc2tc1tc1tc2t
+* Dump this  |
+*        make CR
+*            |Dump|
+*              make CR
+*              wait until a change in source or a timeout happens
+*/
+  uint32_t temp_cnt = read_cnt;
   uint8_t src, next;
-  if (ldat[oldcnt & BUFFMSK].src == 0) return -2;
-  for (i=oldcnt;;i++){
-    src = ldat[i & BUFFMSK].src;
-    next = ldat[(i+1) & BUFFMSK].src;
-    //chprintf(dbg, "i: %d, SRC: %d NXT: %d\r\n", i, src, next);
+  if (ldat[temp_cnt].src == 0) return -2; // no more data in array
+  while (1) {
+    src = ldat[temp_cnt].src;
+    temp_cnt = increase_rwcnt(temp_cnt);
+    next = ldat[temp_cnt].src;
     if (src != next){ // we have a change in source
-      if (next == 0) return -1; // block not finished
-      else return (i - oldcnt + 1); // block is finished
-    }
+      if (next == 0) return -1; // block not finished, wait for timeout
+      else return (temp_cnt - read_cnt); // block is finished
+    } 
   }
+  //chprintf(dbg, "i: %d, SRC: %d NXT: %d\r\n", i, src, next);
   return -2;
 }
 
-uint32_t dump_data_0(uint32_t cnt, uint8_t src){
-  uint32_t i, idx;
-  uint8_t ch;
+void dump_data_0(uint32_t cnt){
+  uint32_t i;
+  uint8_t ch, src;
   systime_t tm, dt;
-  if (src == 3){
-    chprintf(dbg, "------------------ BREAK @ T: %06d\r\n", tm);
-    return cnt+oldcnt;
-  }  
+
+  src = ldat[read_cnt].src;
   chprintf(dbg, "%d->%d cnt: %d \r\n", src, (src==1?2:1), cnt);
   for (i=0;i<cnt;i++){ // go through all the characters
-    idx = (i+oldcnt) & BUFFMSK;
-    ch = ldat[idx].lastchar;
-    tm = ldat[idx].timestamp - firstchar; // tm starts at zero
-    dt = ldat[idx].timestamp - ldat[(idx-1)].timestamp; // time difference 
+    ch = ldat[read_cnt].lastchar;
+    src = ldat[read_cnt].src;
+    ldat[read_cnt].src = 0; // delete for next round
+    tm = ldat[read_cnt].timestamp - fc_timestamp; // tm starts at zero
+    dt = ldat[read_cnt].timestamp - ldat[(read_cnt-1)].timestamp; // time difference 
     if (tm)
       chprintf(dbg, "%02X T: %06d dT: %04d\r\n", ch, tm, dt);
     else
       chprintf(dbg, "%02X T: %06d dT: ----\r\n", ch, tm);
+    read_cnt = increase_rwcnt(read_cnt);
   }
   //chprintf(dbg, "\r\n");
-  return cnt+oldcnt;
+  return;
 }
 
-uint32_t dump_data_1(uint32_t cnt, uint8_t src){
-  uint32_t i, idx;
-  uint8_t ch;
+void dump_data_1(uint32_t cnt){
+  uint32_t i;
+  uint8_t ch, src;
   systime_t tm;
-  tm = ldat[oldcnt].timestamp - firstchar; // tm starts at zero
-  if (src == 3){
-    chprintf(dbg, "------------------ BREAK @ T: %06d\r\n", tm);
-    return cnt+oldcnt;
-  }
+
+  src = ldat[read_cnt].src;
+  tm = ldat[read_cnt].timestamp - fc_timestamp; // tm starts at zero
   chprintf(dbg, "%d->%d cnt: %d T: %06d\r\n", src, (src==1?2:1), cnt, tm);
   for (i=0;i<cnt;i++){ // go through all the characters
-    idx = (i+oldcnt) & BUFFMSK;
-    ch = ldat[idx].lastchar;
+    ch = ldat[read_cnt].lastchar;
+    ldat[read_cnt].src = 0; // delete for next round
+    read_cnt = increase_rwcnt(read_cnt);
+
     if ((i%16 == 0) && (i>0)) chprintf(dbg, "\r\n");
     chprintf(dbg, "%02X ", ch);
   }
   chprintf(dbg, "\r\n");
-  return cnt+oldcnt;
+  return;
 }
 
-uint32_t dump_data_2(uint32_t cnt, uint8_t src){
-  uint32_t i, idx, line;
-  uint8_t ch;
+void dump_data_2(uint32_t cnt){
+  uint32_t i, j, line, width = 0;
+  uint8_t ch, src;
+  uint8_t ascii[16];
   systime_t tm;
-  tm = ldat[oldcnt].timestamp - firstchar; // tm starts at zero
-  if (src == 3){
-    chprintf(dbg, "------------------ BREAK @ T: %06d\r\n", tm);
-    return cnt+oldcnt;
-  }
+
+  src = ldat[read_cnt].src;
+  tm = ldat[read_cnt].timestamp - fc_timestamp; // tm starts at zero
   chprintf(dbg, "%d->%d cnt: %d T: %06d\r\n", src, (src==1?2:1), cnt, tm);
   for (line=0; line < cnt;line+=16){
+    width = 0;
     // print HEX here
-    for (i=0;i<16;i++){
-      idx = (line+i+oldcnt) & BUFFMSK;
+    for (i=0;i<16;i++){ // print max 16 char per line
       if ((i+line) >= cnt){
         chprintf(dbg, "   "); // fill the space
       }
       else{
-        ch = ldat[idx].lastchar;
+        ch = ldat[read_cnt].lastchar;
+        ascii[width] = ch;
+        ldat[read_cnt].src = 0; // delete for next round
+        read_cnt = increase_rwcnt(read_cnt);
         chprintf(dbg, "%02X ", ch);
+        width++;
       }
     }
     chprintf(dbg, " | "); // make separator
     // print ASCII here
-    for (i=0;i<16;i++){
-      idx = (line+i+oldcnt) & BUFFMSK;
-      if ((i+line) >= cnt){
-        //chprintf(dbg, "."); // fill the space
-      }
-      else{
-        safe_print(ldat[idx].lastchar);
-      }
-    }    
+    for (j=0;j<width;j++){ // print ASCII
+      safe_print(ascii[j]);
+    }
     chprintf(dbg, "\r\n");
-  }
-  //chprintf(dbg, "\r\n");
-  return cnt+oldcnt;
+  } // end Line   
+  return;
 }
 
-void check_data(void){
-  uint32_t cnt, cnt_temp, i;
+void check_data(void){       // Thread, every 50ms
+  uint32_t cnt;
   int32_t temp;
-  uint8_t src;
 
-  src = ldat[oldcnt & BUFFMSK].src;
+  if ((rx_cnt+tx_cnt) == 0) return; // nothing to print
   
-  if (ldat_cnt == oldcnt) return;
-  //dump_in_progress = 1;
-  //chprintf(dbg, "getcnt ldat_cnt.: %d, src: %d\r\n", ldat_cnt, ldat[ldat_cnt].src);
   temp = get_count();
   if (temp == -2) return; // no data
   if (temp == -1){
     if (TIME_I2MS(chVTGetSystemTime()) - last_received_char > flush_timeout){
-      cnt = ldat_cnt - oldcnt;
+      cnt = write_cnt - read_cnt; // dump everything
     }
     else return;
   }
   else cnt = (uint32_t)temp;
-  //chprintf(dbg, "%d->%d c: %d OLD: %d LDAT: %d\r\n", src, dest, cnt, oldcnt, ldat_cnt);
-  cnt_temp = oldcnt;
+  //chprintf(dbg, "%d->%d c: %d OLD: %d LDAT: %d\r\n", src, dest, cnt, read_cnt, write_cnt);
   switch(dump_format){
   case 0:
-    oldcnt = dump_data_0(cnt, src);
+    dump_data_0(cnt);
     break;
   case 1:
-    oldcnt = dump_data_1(cnt, src);
+    dump_data_1(cnt);
     break;
   case 2:
-    oldcnt = dump_data_2(cnt, src);
+    dump_data_2(cnt);
     break;
   default:
     break;
   }
-  for (i=cnt_temp; i<(oldcnt);i++ ){
-    ldat[(i & BUFFMSK)].src = 0; // clear the source for the next time the pointer comes around
-  }
-  if (oldcnt > BUFFMSK) oldcnt = (oldcnt & BUFFMSK);
-  dump_in_progress = 0;
-  //chprintf(dbg, "CNT: %d, OLD: %d\r\n", ldat_cnt, oldcnt);
 }
 
-void got_char(uint8_t c, uint8_t src){
-  //int32_t temp;
-  //temp = ldat_cnt-1; // last entry
-  last_received_char = TIME_I2MS(chVTGetSystemTime());
-  ldat[ldat_cnt & BUFFMSK].lastchar = c;
-  ldat[ldat_cnt & BUFFMSK].src = src;
-  ldat[ldat_cnt & BUFFMSK].timestamp = last_received_char;
-  if (ldat_cnt == 0){
-    chprintf(dbg, "\r\n------------------------- START HERE ------------------------------\r\n");
-    firstchar = last_received_char; // very first character
-  } 
-  ldat_cnt = ((ldat_cnt + 1)  & BUFFMSK) ;
-}
-
-static THD_WORKING_AREA(waListener1, 512);
-static THD_FUNCTION(Listener1, arg) {
-
-  (void)arg;
-  uint8_t c;
-  chRegSetThreadName("listener1");
-  while (true) {
-    sdRead(&SD1, (uint8_t *)&c, 1);
-    //chprintf(dbg, "1: %c\r\n", c);
-    got_char(c, 1);
-  }
-  chThdSleepMilliseconds(10);
-}
-static THD_WORKING_AREA(waListener2, 512);
-static THD_FUNCTION(Listener2, arg) {
-
-  (void)arg;
-  uint8_t c;
-  chRegSetThreadName("listener2");
-  while (true) {
-    sdRead(&SD2, (uint8_t *)&c, 1);
-    //chprintf(dbg, "2: %c\r\n", c);
-    got_char(c, 2);
-  }
-  chThdSleepMilliseconds(10);
-}
 static THD_WORKING_AREA(waListener3, 128);
-static THD_FUNCTION(Listener3, arg) {
+static THD_FUNCTION(Listener3, arg) { // This Thread listens to the onboard Button to make a "Mark" in the Logging,
+                                      // It also checks if data is to output
 
   (void)arg;
   static uint8_t disable = 0;
   chRegSetThreadName("listener3");
   while (true) {
-    if (palReadPad(GPIOA, 0) == PAL_LOW){
-      if (disable == 0){
-        got_char(' ', 3);
-        disable = 1;
-      }
-    }
-    else{
-      disable = 0;
-    }
-    if (dump_in_progress == 0)
-      check_data();
+    check_data();
     chThdSleepMilliseconds(50);
   }
 }
@@ -391,7 +499,10 @@ int main(void) {
   palSetPadMode(GPIOC, 13, PAL_MODE_OUTPUT_PUSHPULL ); // LED
   palSetPadMode(GPIOC, 14, PAL_MODE_OUTPUT_PUSHPULL ); // Debug
   palSetPadMode(GPIOC, 15, PAL_MODE_OUTPUT_PUSHPULL ); // Debug
-
+  palSetLineMode(EXTBTN, PAL_MODE_INPUT_PULLUP); // Button
+  /* Enabling the event and associating the callback. */
+  palEnableLineEvent(EXTBTN, PAL_EVENT_MODE_FALLING_EDGE);
+  palSetLineCallback(EXTBTN, button_cb, NULL);
 
   sduObjectInit(&SHELLPORT);
   sduStart(&SHELLPORT, &serusbcfg1);
@@ -407,14 +518,8 @@ int main(void) {
     palSetPadMode(GPIOA, 3, PAL_MODE_ALTERNATE(7));  // RX2
     //palSetPadMode(GPIOA, 9, PAL_MODE_ALTERNATE(7));  // TX1
     palSetPadMode(GPIOA, 10, PAL_MODE_ALTERNATE(7)); // RX1
-    palSetPadMode(GPIOA, 0, PAL_MODE_INPUT_PULLUP);  // Button
-    sdStart(&SD2, &serial_config);
-    sdStart(&SD1, &serial_config);
-    chSysLock();
-    oqResetI(&SD1.oqueue);
-    oqResetI(&SD2.oqueue);
-    chSchRescheduleS();
-    chSysUnlock();
+    uartStart(&UARTD1, &uart_cfg1);
+    uartStart(&UARTD2, &uart_cfg2);
     flush_buffer();
   }
   else{
@@ -432,8 +537,6 @@ int main(void) {
   shellInit();
   chEvtRegister(&shell_terminated, &shell_el, 0);
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
-  chThdCreateStatic(waListener1, sizeof(waListener1), NORMALPRIO, Listener1, NULL);
-  chThdCreateStatic(waListener2, sizeof(waListener2), NORMALPRIO, Listener2, NULL);
   chThdCreateStatic(waListener3, sizeof(waListener3), NORMALPRIO, Listener3, NULL);
   /*
    * Normal main() thread activity, in this demo it does nothing except

@@ -20,7 +20,7 @@
 #include "main.h"
 
 extern BaseSequentialStream *const dbg; //DEBUGPORT
-extern SerialConfig serial_config;
+extern UARTConfig uart_cfg1, uart_cfg2;
 extern ICUConfig icucfg1, icucfg2;
 extern uint8_t serstat, dump_format;
 extern uint16_t flush_timeout;
@@ -48,7 +48,7 @@ void cmd_sbr(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)* argv;
   (void)argc;
   uint32_t baud;
-  baud = serial_config.speed;
+  baud = uart_cfg1.speed; // Both have the same speed so we use cfg1
   if(argc <1){
     chprintf(chp, "Sets Baudrate of listeners.\r\n");
     chprintf(chp, "Baudrate now: %d \r\n", baud);
@@ -60,9 +60,11 @@ void cmd_sbr(BaseSequentialStream *chp, int argc, char *argv[]) {
     chprintf(chp, "Baudrate out of Range: (%d) \r\n", baud);
     return;
   }
-  serial_config.speed = baud;
-  sdStart(&SD1, &serial_config);
-  sdStart(&SD2, &serial_config);
+  uart_cfg1.speed = baud;
+  uart_cfg2.speed = baud;
+  uartStart(&UARTD1, &uart_cfg1);
+  uartStart(&UARTD2, &uart_cfg2);
+
   chprintf(chp, "UARTs updated.\r\n");
 }
 
@@ -100,6 +102,9 @@ void cmd_format(BaseSequentialStream *chp, int argc, char *argv[]) {
     chprintf(chp, "Changes Dump Format.\r\n");
     chprintf(chp, "Format is now: %d \r\n", dump_format);
     chprintf(chp, "Usage: format [0..3]\r\n");
+    chprintf(chp, "0: Format dd T: tttttt dt: tttt (d is Data, t is time, one entry per Line.\r\n");
+    chprintf(chp, "1: one Block  (16 characters wide) per source without ASCII.\r\n");
+    chprintf(chp, "2: one Block  (16 characters wide) per source with ASCII.\r\n");
     return;
   }
   stat = strtol(argv[0], NULL, 0);
@@ -138,14 +143,13 @@ void cmd_son(BaseSequentialStream *chp, int argc, char *argv[]) {
     palSetPadMode(GPIOA, 9, PAL_MODE_ALTERNATE(7));  // TX1
     palSetPadMode(GPIOA, 10, PAL_MODE_ALTERNATE(7)); // RX1
     palSetPadMode(GPIOA, 0, PAL_MODE_INPUT_PULLUP);  // Button
-
-    sdStart(&SD1, &serial_config);
-    sdStart(&SD2, &serial_config);    
+    uartStart(&UARTD1, &uart_cfg1);
+    uartStart(&UARTD2, &uart_cfg2);   
     chprintf(chp, "UARTs started, Timer stopped.\r\n");
   }
   else {
-    sdStop(&SD1);
-    sdStop(&SD2);
+    uartStop(&UARTD1);
+    uartStop(&UARTD2);
     palSetPadMode(GPIOA, 0, PAL_MODE_ALTERNATE(1));  // TIM2/1
     icuStart(&ICUD2, &icucfg1);
     icuStartCapture(&ICUD2);

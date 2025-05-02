@@ -142,7 +142,7 @@
  * @brief   Enables the SERIAL subsystem.
  */
 #if !defined(HAL_USE_SERIAL) || defined(__DOXYGEN__)
-#define HAL_USE_SERIAL                      TRUE
+#define HAL_USE_SERIAL                      FALSE//TRUE
 #endif
 
 /**
@@ -177,7 +177,7 @@
  * @brief   Enables the UART subsystem.
  */
 #if !defined(HAL_USE_UART) || defined(__DOXYGEN__)
-#define HAL_USE_UART                        FALSE
+#define HAL_USE_UART                        TRUE//FALSE
 #endif
 
 /**
@@ -210,7 +210,7 @@
  * @note    Disabling this option saves both code and data space.
  */
 #if !defined(PAL_USE_CALLBACKS) || defined(__DOXYGEN__)
-#define PAL_USE_CALLBACKS                   FALSE
+#define PAL_USE_CALLBACKS                   TRUE//FALSE
 #endif
 
 /**
@@ -412,7 +412,7 @@
  *          buffers.
  */
 #if !defined(SERIAL_BUFFERS_SIZE) || defined(__DOXYGEN__)
-#define SERIAL_BUFFERS_SIZE                 256
+#define SERIAL_BUFFERS_SIZE                 16
 #endif
 
 /*===========================================================================*/
@@ -427,7 +427,7 @@
  *          buffers.
  */
 #if !defined(SERIAL_USB_BUFFERS_SIZE) || defined(__DOXYGEN__)
-#define SERIAL_USB_BUFFERS_SIZE             256
+#define SERIAL_USB_BUFFERS_SIZE             1024
 #endif
 
 /**

@@ -115,12 +115,12 @@ build/obj/hal_usb_lld.o: \
  ../../chibios_trunk/os/hal/include/hal_pwm.h \
  ../../chibios_trunk/os/hal/include/hal_rtc.h \
  ../../chibios_trunk/os/hal/include/hal_serial.h \
- ../../chibios_trunk/os/hal/ports/STM32/LLD/USARTv1/hal_serial_lld.h \
  ../../chibios_trunk/os/hal/include/hal_sdc.h \
  ../../chibios_trunk/os/hal/include/hal_sio.h \
  ../../chibios_trunk/os/hal/include/hal_spi.h \
  ../../chibios_trunk/os/hal/include/hal_trng.h \
  ../../chibios_trunk/os/hal/include/hal_uart.h \
+ ../../chibios_trunk/os/hal/ports/STM32/LLD/USARTv1/hal_uart_lld.h \
  ../../chibios_trunk/os/hal/include/hal_usb.h \
  ../../chibios_trunk/os/hal/ports/STM32/LLD/OTGv1/hal_usb_lld.h \
  ../../chibios_trunk/os/hal/ports/STM32/LLD/OTGv1/stm32_otg.h \
@@ -368,8 +368,6 @@ cfg/mcuconf.h:
 
 ../../chibios_trunk/os/hal/include/hal_serial.h:
 
-../../chibios_trunk/os/hal/ports/STM32/LLD/USARTv1/hal_serial_lld.h:
-
 ../../chibios_trunk/os/hal/include/hal_sdc.h:
 
 ../../chibios_trunk/os/hal/include/hal_sio.h:
@@ -379,6 +377,8 @@ cfg/mcuconf.h:
 ../../chibios_trunk/os/hal/include/hal_trng.h:
 
 ../../chibios_trunk/os/hal/include/hal_uart.h:
+
+../../chibios_trunk/os/hal/ports/STM32/LLD/USARTv1/hal_uart_lld.h:
 
 ../../chibios_trunk/os/hal/include/hal_usb.h:
 

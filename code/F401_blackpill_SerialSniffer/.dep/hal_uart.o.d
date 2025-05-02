@@ -1,4 +1,4 @@
-build/obj/hal_serial.o: ../../chibios_trunk/os/hal/src/hal_serial.c \
+build/obj/hal_uart.o: ../../chibios_trunk/os/hal/src/hal_uart.c \
  ../../chibios_trunk/os/hal/include/hal.h \
  ../../chibios_trunk/os/hal/osal/rt-nil/osal.h \
  /home/rob/Projects/ChibiStudio/ChibiStudio_20/tools/GNU\ Tools\ ARM\ Embedded/9.2.1\ 2019q4/lib/gcc/arm-none-eabi/9.2.1/include/stddef.h \
@@ -100,12 +100,12 @@ build/obj/hal_serial.o: ../../chibios_trunk/os/hal/src/hal_serial.c \
  ../../chibios_trunk/os/hal/include/hal_pwm.h \
  ../../chibios_trunk/os/hal/include/hal_rtc.h \
  ../../chibios_trunk/os/hal/include/hal_serial.h \
- ../../chibios_trunk/os/hal/ports/STM32/LLD/USARTv1/hal_serial_lld.h \
  ../../chibios_trunk/os/hal/include/hal_sdc.h \
  ../../chibios_trunk/os/hal/include/hal_sio.h \
  ../../chibios_trunk/os/hal/include/hal_spi.h \
  ../../chibios_trunk/os/hal/include/hal_trng.h \
  ../../chibios_trunk/os/hal/include/hal_uart.h \
+ ../../chibios_trunk/os/hal/ports/STM32/LLD/USARTv1/hal_uart_lld.h \
  ../../chibios_trunk/os/hal/include/hal_usb.h \
  ../../chibios_trunk/os/hal/ports/STM32/LLD/OTGv1/hal_usb_lld.h \
  ../../chibios_trunk/os/hal/ports/STM32/LLD/OTGv1/stm32_otg.h \
@@ -325,8 +325,6 @@ cfg/mcuconf.h:
 
 ../../chibios_trunk/os/hal/include/hal_serial.h:
 
-../../chibios_trunk/os/hal/ports/STM32/LLD/USARTv1/hal_serial_lld.h:
-
 ../../chibios_trunk/os/hal/include/hal_sdc.h:
 
 ../../chibios_trunk/os/hal/include/hal_sio.h:
@@ -336,6 +334,8 @@ cfg/mcuconf.h:
 ../../chibios_trunk/os/hal/include/hal_trng.h:
 
 ../../chibios_trunk/os/hal/include/hal_uart.h:
+
+../../chibios_trunk/os/hal/ports/STM32/LLD/USARTv1/hal_uart_lld.h:
 
 ../../chibios_trunk/os/hal/include/hal_usb.h:
 

@@ -17,6 +17,8 @@
 #include "chprintf.h"
 #include "comm.h"
 
+#define EXTBTN PAL_LINE(GPIOA, 0U)  // External button
+
 void flush_buffer(void);
 typedef struct{
   uint8_t lastchar;
